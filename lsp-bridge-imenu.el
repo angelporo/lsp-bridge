@@ -7,12 +7,17 @@
 (require 'imenu)
 (require 'lsp-bridge)
 
+(defcustom lsp-bridge-raw-imenu-modes
+  '(emacs-lisp-mode org-mode)
+  "Modes that use `imenu' instead of Lsp-bridge imenu."
+  :type 'cons)
+
 ;;;###autoload
 (defun lsp-bridge-imenu ()
   (interactive)
-  (if (equal major-mode 'emacs-lisp-mode)
+  (if (memq major-mode lsp-bridge-raw-imenu-modes)
       (call-interactively 'imenu)
-  (lsp-bridge-call-file-api "document_symbol" nil)))
+    (lsp-bridge-call-file-api "imenu")))
 
 (defun lsp-bridge--imenu-show (filename filehost res)
   "Compute `imenu--index-alist' for RES vector of FILEHOST:FILENAME."
