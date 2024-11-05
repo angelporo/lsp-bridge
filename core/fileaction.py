@@ -94,6 +94,7 @@ class FileAction:
         (self.enable_auto_import,
          self.completion_items_limit,
          self.completion_match_mode,
+         self.completion_workspace_symbol_items_limit,
          self.insert_spaces,
          self.enable_push_diagnostics,
          self.push_diagnostic_idle,
@@ -102,6 +103,7 @@ class FileAction:
              "acm-backend-lsp-enable-auto-import",
              "acm-backend-lsp-candidates-max-number",
              "acm-backend-lsp-match-mode",
+             "acm-backend-lsp-workspace-symbol-candidates-max-number",
              "indent-tabs-mode",
              "lsp-bridge-enable-diagnostics",
              "lsp-bridge-diagnostic-fetch-idle",
@@ -244,13 +246,15 @@ class FileAction:
                     self.send_server_request(lsp_server, "completion", lsp_server, position, before_char, prefix, version)
 
                     # Send workspace symbol completion request.
-                    self.send_server_request(lsp_server, "completion_workspace_symbol", lsp_server, prefix)
+                    if lsp_server.workspace_symbol_provider:
+                        self.send_server_request(lsp_server, "completion_workspace_symbol", lsp_server, prefix)
         else:
             # Send code completion request.
             self.send_server_request(self.single_server, "completion", self.single_server, position, before_char, prefix, version)
 
             # Send workspace symbol completion request.
-            self.send_server_request(self.single_server, "completion_workspace_symbol", self.single_server, prefix)
+            if self.single_server.workspace_symbol_provider:
+                self.send_server_request(self.single_server, "completion_workspace_symbol", self.single_server, prefix)
 
     def try_formatting(self, start, end, *args, **kwargs):
         if self.multi_servers:

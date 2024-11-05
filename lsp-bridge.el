@@ -127,6 +127,7 @@
                                                     lsp-bridge--not-follow-complete
                                                     lsp-bridge--not-match-stop-commands
                                                     lsp-bridge--not-match-hide-characters
+                                                    lsp-bridge--not-match-hide-keywords
 
                                                     lsp-bridge--not-only-blank-before-cursor
                                                     lsp-bridge--not-in-string
@@ -185,7 +186,7 @@ Setting this to nil or 0 will turn off the heartbeat mechanism."
   :safe #'listp
   :group 'lsp-bridge)
 
-(defcustom lsp-bridge-completion-hide-characters '(":" ";" "(" ")" "[" "]" "{" "}" "," "\"")
+(defcustom lsp-bridge-completion-hide-characters '(":" ";" "(" ")" "[" "]" "{" "}" "," "\"" ">")
   "If character before match this option, stop popup completion ui.
 
 To make this option works, you need set option `lsp-bridge-completion-obey-trigger-characters-p' with nil first.
@@ -493,8 +494,8 @@ Possible choices are basedpyright_ruff, pyright_ruff, pyright-background-analysi
   "Default LSP server for C#, you can choose `omnisharp-mono', `omnisharp-dotnet' or `csharp-ls'."
   :type 'string)
 
-(defcustom lsp-bridge-nix-lsp-server "rnix-lsp"
-  "Default LSP server for nix, you can choose `rnix-lsp', `nixd' or `nil'."
+(defcustom lsp-bridge-nix-lsp-server "nixd"
+  "Default LSP server for nix, you can choose `nixd' `rnix-lsp' or `nil'."
   :type 'string)
 
 (defcustom lsp-bridge-markdown-lsp-server "vale-ls"
@@ -1582,6 +1583,16 @@ So we build this macro to restore postion after code format."
                               (symbol-value 'acm-backend-lsp-completion-trigger-characters))))
         (not (member char lsp-bridge-completion-hide-characters)))))
 
+(defun lsp-bridge--not-match-hide-keywords ()
+  "Hide completion if string before cursor match some special keywords."
+  (let ((string (buffer-substring-no-properties (car (bounds-of-thing-at-point 'symbol))
+                                                (point))))
+    (not (when (and (or (derived-mode-p 'ruby-mode)
+                        (derived-mode-p 'ruby-ts-mode)
+                        (derived-mode-p 'elixir-mode)
+                        (derived-mode-p 'elixir-ts-mode))
+                    (member string '("do" "end")))))))
+
 (defun lsp-bridge--is-evil-state ()
   "If `evil' mode is enable, only show completion when evil is in insert mode."
   (or (not (featurep 'evil))
@@ -1793,6 +1804,11 @@ So we build this macro to restore postion after code format."
                (string-prefix-p "jupyter" (plist-get (car (cdr (org-element-context))) :language)))
       (acm-backend-jupyter-record current-symbol))
 
+    ;; tabby complete
+    (when (and acm-enable-tabby
+               (lsp-bridge-process-live-p))
+      (acm-backend-tabby-record current-symbol))
+
     (when (and acm-enable-ctags
                (lsp-bridge-process-live-p))
       (unless (or (string-equal current-word "") (null current-word))
@@ -1959,7 +1975,9 @@ Off by default."
     (lsp-bridge--set-mark-ring-in-new-buffer))
    (t
     (setq-local lsp-bridge-jump-to-def-in-other-window nil)
-    (lsp-bridge-call-file-api "find_define" (lsp-bridge--position)))))
+    (if (lsp-bridge-has-lsp-server-p)
+        (lsp-bridge-call-file-api "find_define" (lsp-bridge--position))
+      (lsp-bridge-find-def-fallback (lsp-bridge--position))))))
 
 (defun lsp-bridge-find-def-other-window ()
   (interactive)
@@ -1970,7 +1988,9 @@ Off by default."
     (lsp-bridge--set-mark-ring-in-new-buffer))
    (t
     (setq-local lsp-bridge-jump-to-def-in-other-window t)
-    (lsp-bridge-call-file-api "find_define" (lsp-bridge--position)))))
+    (if (lsp-bridge-has-lsp-server-p)
+        (lsp-bridge-call-file-api "find_define" (lsp-bridge--position))
+      (lsp-bridge-find-def-fallback (lsp-bridge--position))))))
 
 (defun lsp-bridge-find-def-return ()
   "Pop off lsp-bridge-mark-ring and jump to the top location."
@@ -2019,7 +2039,9 @@ Off by default."
 
 (defun lsp-bridge-find-references ()
   (interactive)
-  (lsp-bridge-call-file-api "find_references" (lsp-bridge--position)))
+  (if (lsp-bridge-has-lsp-server-p)
+      (lsp-bridge-call-file-api "find_references" (lsp-bridge--position))
+    (lsp-bridge-find-ref-fallback (lsp-bridge--position))))
 
 (defun lsp-bridge-find-def-fallback (position)
   (if (not (= (length lsp-bridge-peek-ace-list) 0))
@@ -2071,11 +2093,15 @@ Off by default."
 
 (defun lsp-bridge-show-documentation ()
   (interactive)
-  (lsp-bridge-call-file-api "hover" (lsp-bridge--position) "buffer"))
+  (let* ((start (lsp-bridge--point-position (if (region-active-p) (region-beginning) (point))))
+         (end (lsp-bridge--point-position (if (region-active-p) (region-end) (point)))))
+    (lsp-bridge-call-file-api "hover" start end "show")))
 
 (defun lsp-bridge-popup-documentation ()
   (interactive)
-  (lsp-bridge-call-file-api "hover" (lsp-bridge--position) "popup"))
+  (let* ((start (lsp-bridge--point-position (if (region-active-p) (region-beginning) (point))))
+         (end (lsp-bridge--point-position (if (region-active-p) (region-end) (point)))))
+    (lsp-bridge-call-file-api "hover" start end "popup")))
 
 (defun lsp-bridge-signature-help-fetch ()
   (interactive)
@@ -2386,19 +2412,9 @@ Default is `bottom-right', you can choose other value: `top-left', `top-right', 
                    (not (file-exists-p (buffer-file-name))))
           (save-buffer)))
 
-      (setq-local acm-backend-lsp-server-command-exist t)
-      (setq-local acm-backend-lsp-cache-candidates nil)
-      (setq-local acm-backend-lsp-completion-position nil)
-      (setq-local acm-backend-lsp-completion-trigger-characters nil)
-      (setq-local acm-backend-lsp-server-names nil)
-      (setq-local acm-backend-lsp-filepath (lsp-bridge-get-buffer-truename))
-      (setq-local acm-backend-lsp-items (make-hash-table :test 'equal))
-
-      (setq-local acm-backend-lsp-workspace-symbol-cache-candidates nil)
-      (setq-local acm-backend-lsp-workspace-symbol-completion-position nil)
-      (setq-local acm-backend-lsp-workspace-symbol-completion-trigger-characters nil)
-      (setq-local acm-backend-lsp-workspace-symbol-server-names nil)
-      (setq-local acm-backend-lsp-workspace-symbol-items (make-hash-table :test 'equal))
+      ;; Init backends.
+      (acm-backend-lsp-init)
+      (acm-backend-lsp-workspace-symbol-init)
 
       (when lsp-bridge-enable-signature-help
         (acm-run-idle-func lsp-bridge-signature-help-timer lsp-bridge-signature-help-fetch-idle 'lsp-bridge-signature-help-fetch))
@@ -2793,7 +2809,8 @@ We need exclude `markdown-code-fontification:*' buffer in `lsp-bridge-monitor-be
                                               all-text
                                               (not indent-tabs-mode)
                                               (acm-get-input-prefix)
-                                              language))
+                                              language
+                                              (buffer-file-name)))
       (lsp-bridge-call-async "codeium_complete"
                              (1- (point))
                              (symbol-name major-mode)
@@ -2801,7 +2818,8 @@ We need exclude `markdown-code-fontification:*' buffer in `lsp-bridge-monitor-be
                              all-text
                              (not indent-tabs-mode)
                              (acm-get-input-prefix)
-                             language))))
+                             language
+                             (buffer-file-name)))))
 
 (defun lsp-bridge-copilot-complete ()
   (interactive)

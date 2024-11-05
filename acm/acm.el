@@ -108,6 +108,7 @@
 (require 'acm-backend-copilot)
 (require 'acm-backend-org-roam)
 (require 'acm-backend-jupyter)
+(require 'acm-backend-tabby)
 (require 'acm-backend-capf)
 (require 'acm-quick-access)
 
@@ -184,14 +185,16 @@
   :type 'string
   :group 'acm)
 
-(defcustom acm-completion-backend-merge-order '("mode-first-part-candidates"
-                                                "template-first-part-candidates"
-                                                "tabnine-candidates"
-                                                "copilot-candidates"
-                                                "codeium-candidates"
-                                                "template-second-part-candidates"
-                                                "mode-second-part-candidates")
-  "The merge order for completion backend."
+(defalias 'acm-completion-backend-merge-order 'acm-backend-order)
+
+(defcustom acm-backend-order '("mode-first-part-candidates"
+                               "template-first-part-candidates"
+                               "tabnine-candidates"
+                               "copilot-candidates"
+                               "codeium-candidates"
+                               "template-second-part-candidates"
+                               "mode-second-part-candidates")
+  "The order for completion backend."
   :type 'list
   :group 'acm)
 
@@ -200,6 +203,7 @@
                                                         "lsp-workspace-symbol-candidates"
                                                         "capf-candidates"
                                                         "jupyter-candidates"
+                                                        "tabby-candidates"
                                                         "ctags-candidates"
                                                         "citre-candidates"
                                                         "org-roam-candidates"
@@ -377,27 +381,28 @@ So we use `minor-mode-overriding-map-alist' to override key, make sure all keys 
        (<= (match-beginning 2) (point))))
 
 (defun acm-get-input-prefix-bound ()
-  (pcase acm-input-bound-style
-    ("symbol"
-     (bounds-of-thing-at-point 'symbol))
-    ("org-roam"
-     (when (org-in-regexp org-roam-bracket-completion-re 1)
-       (cons (match-beginning 2)
-             (match-end 2))))
-    ("string"
-     (cons (point)
-           (save-excursion
-             (if (search-backward-regexp "\\s-" (point-at-bol) t)
-                 (progn
-                   (forward-char)
-                   (point))
-               (point-at-bol)))))
-    ("ascii"
-     (when-let ((bound (bounds-of-thing-at-point 'symbol)))
-       (let* ((keyword (buffer-substring-no-properties (car bound) (cdr bound)))
-              (offset (or (string-match "[[:nonascii:]]+" (reverse keyword))
-                          (length keyword))))
-         (cons (- (cdr bound) offset) (cdr bound)))))))
+  (cond
+   ((or (equal "string" acm-input-bound-style)
+        (derived-mode-p 'org-mode))
+    (cons (point)
+          (save-excursion
+            (if (search-backward-regexp "\\s-" (point-at-bol) t)
+                (progn
+                  (forward-char)
+                  (point))
+              (point-at-bol)))))
+   ((equal "symbol" acm-input-bound-style)
+    (bounds-of-thing-at-point 'symbol))
+   ((equal "org-roam" acm-input-bound-style)
+    (when (org-in-regexp org-roam-bracket-completion-re 1)
+      (cons (match-beginning 2)
+            (match-end 2))))
+   ((equal "ascii" acm-input-bound-style)
+    (when-let ((bound (bounds-of-thing-at-point 'symbol)))
+      (let* ((keyword (buffer-substring-no-properties (car bound) (cdr bound)))
+             (offset (or (string-match "[[:nonascii:]]+" (reverse keyword))
+                         (length keyword))))
+        (cons (- (cdr bound) offset) (cdr bound)))))))
 
 (defun acm-get-input-prefix ()
   "Get user input prefix."
@@ -484,6 +489,7 @@ Only calculate template candidate when type last character."
          codeium-candidates
          copilot-candidates
          jupyter-candidates
+         tabby-candidates
          tempel-candidates
          mode-candidates
          mode-first-part-candidates
@@ -509,6 +515,9 @@ Only calculate template candidate when type last character."
 
     (when acm-enable-jupyter
       (setq jupyter-candidates (acm-backend-jupyter-candidates keyword)))
+
+    (when acm-enable-tabby
+      (setq tabby-candidates (acm-backend-tabby-candidates keyword)))
 
     (when acm-enable-capf
       (setq capf-candidates (acm-backend-capf-candiates keyword)))
@@ -538,7 +547,7 @@ Only calculate template candidate when type last character."
           (setq file-words-candidates (acm-remove-duplicate-candidates file-words-candidates lsp-labels)))
 
 
-          
+
         (setq mode-candidates
               (apply #'append (mapcar (lambda (mode-candidate-name)
                                         (pcase mode-candidate-name
@@ -547,6 +556,7 @@ Only calculate template candidate when type last character."
                                           ("lsp-workspace-symbol-candidates" lsp-workspace-symbol-candidates)
                                           ("capf-candidates" capf-candidates)
                                           ("jupyter-candidates" jupyter-candidates)
+                                          ("tabby-candidates" tabby-candidates)
                                           ("ctags-candidates" ctags-candidates)
                                           ("citre-candidates" citre-candidates)
                                           ("org-roam-candidates" org-roam-candidates)
@@ -615,7 +625,7 @@ Only calculate template candidate when type last character."
                                                      ("template-second-part-candidates" template-second-part-candidates)
                                                      ("mode-second-part-candidates" mode-second-part-candidates)
                                                      ))
-                                                 acm-completion-backend-merge-order))
+                                                 acm-backend-order))
               )))
 
     ;; Return candidates.
@@ -975,8 +985,9 @@ The key of candidate will change between two LSP results."
             ;; Insert documentation and turn on wrap line.
             (with-current-buffer (get-buffer-create acm-doc-buffer)
               (read-only-mode -1)
-              (erase-buffer)
-              (insert doc)
+              (when (not (string-equal doc acm-markdown-render-doc))
+                (erase-buffer)
+                (insert doc))
               (visual-line-mode 1))
 
             ;; Only render markdown styling when idle 200ms, because markdown render is expensive.
