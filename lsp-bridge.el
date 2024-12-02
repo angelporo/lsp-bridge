@@ -374,6 +374,7 @@ LSP-Bridge will enable completion inside string literals."
                (lsp-bridge-epc-define-method mngr 'get-multi-lang-server 'lsp-bridge--get-multi-lang-server-func)
                (lsp-bridge-epc-define-method mngr 'get-single-lang-server 'lsp-bridge--get-single-lang-server-func)
                (lsp-bridge-epc-define-method mngr 'get-user-emacs-directory 'lsp-bridge--user-emacs-directory-func)
+               (lsp-bridge-epc-define-method mngr 'get-user-tsdk-path 'lsp-bridge--user-tsdk-path-func)
                (lsp-bridge-epc-define-method mngr 'get-buffer-content 'lsp-bridge--get-buffer-content-func)
                (lsp-bridge-epc-define-method mngr 'get-current-line 'lsp-bridge--get-current-line-func)
                (lsp-bridge-epc-define-method mngr 'get-ssh-password 'lsp-bridge--get-ssh-password-func)
@@ -457,7 +458,7 @@ Then LSP-Bridge will start by gdb, please send new issue with `*lsp-bridge*' buf
     (("wxml") . "wxml-language-server")
     (("html") . "vscode-html-language-server")
     (("astro") . "astro-ls")
-    (("typ") . "typst-lsp")
+    (("typ") . "tinymist")
     )
   "The lang server rule for file extension."
   :type 'cons)
@@ -513,6 +514,12 @@ Possible choices are basedpyright_ruff, pyright_ruff, pyright-background-analysi
 (defcustom lsp-bridge-xml-lsp-server "lemminx"
   "Default LSP server for XML, you can choose `lemminx', `camells'"
   :type 'string)
+
+(defcustom lsp-bridge-tsdk-path nil
+  "Tsserver lib*.d.ts directory path in current system needed by some lsp servers.
+If nil, lsp-bridge would try to detect by default."
+  :type '(choice (const nil)
+                 (string)))
 
 (defcustom lsp-bridge-use-wenls-in-org-mode nil
   "Use `wen' lsp server in org-mode, default is disable.")
@@ -589,6 +596,7 @@ Possible choices are basedpyright_ruff, pyright_ruff, pyright-background-analysi
     (solidity-mode .                                                             "solidity")
     (gleam-ts-mode .                                                             "gleam")
     (ada-mode .                                                                  "ada-language-server")
+    (scad-mode .                                                                 "openscad-lsp")
     (sml-mode .                                                                  "millet")
     (fuzion-mode .                                                               "fuzion-language-server")
     (fennel-mode .                                                               "fennel-ls")
@@ -693,6 +701,7 @@ Possible choices are basedpyright_ruff, pyright_ruff, pyright-background-analysi
     kotlin-mode-hook
     vhdl-mode-hook
     typst-mode-hook
+    typst-ts-mode-hook
     graphql-mode-hook
     graphql-ts-mode-hook
     c-ts-mode-hook
@@ -717,6 +726,7 @@ Possible choices are basedpyright_ruff, pyright_ruff, pyright-background-analysi
     solidity-mode-hook
     gleam-ts-mode-hook
     ada-mode-hook
+    scad-mode-hook
     sml-mode-hook
     fuzion-mode-hook
     fennel-mode-hook
@@ -799,6 +809,7 @@ you can customize `lsp-bridge-get-workspace-folder' to return workspace folder p
     (raku-mode                  . raku-indent-offset)  ; Perl6/Raku
     (erlang-mode                . erlang-indent-level) ; Erlang
     (ada-mode                   . ada-indent)          ; Ada
+    (scad-mode                  . lsp-bridge-indent-two-level) ; OpenSCAD
     (sml-mode                   . sml-indent-level)    ; Standard ML
     (fuzion-mode                . lsp-bridge-indent-two-level) ; Fuzion
     (fennel-mode                . lsp-bridge-indent-two-level) ; Fennel
@@ -871,6 +882,7 @@ you can customize `lsp-bridge-get-workspace-folder' to return workspace folder p
     (sh-mode .            "\$\{")
     (bash-mode .          "\$\{")
     (bash-ts-mode .       "\$\{")
+    (typst-ts-mode .      "\$\{")
     (typst--base-mode .   "\$\{")
     (typst--code-mode .   "\$\{")
     (typst--math-mode .   "\$\{")
@@ -912,7 +924,7 @@ you can customize `lsp-bridge-get-workspace-folder' to return workspace folder p
 (cl-defmacro lsp-bridge--with-file-buffer (filename filehost &rest body)
   "Evaluate BODY in buffer with FILEPATH."
   (declare (indent 1))
-  `(when-let ((buffer (pcase ,filehost
+  `(when-let* ((buffer (pcase ,filehost
                         ("" (lsp-bridge-get-match-buffer-by-filepath ,filename))
                         (_ (lsp-bridge-get-match-buffer-by-remote-file ,filehost ,filename)))))
      (with-current-buffer buffer
@@ -1020,6 +1032,15 @@ So we build this macro to restore postion after code format."
 (defun lsp-bridge--user-emacs-directory-func ()
   "Get lang server with project path, file path or file extension."
   (expand-file-name user-emacs-directory))
+
+(defun lsp-bridge--user-tsdk-path-func ()
+  "Get tsserver lib*.d.ts directory path."
+  (when-let* (((null lsp-bridge-tsdk-path))
+              (bin (executable-find "tsc"))
+              (tsdk (expand-file-name "../../lib" (file-truename bin)))
+              ((file-exists-p tsdk)))
+    (setq lsp-bridge-tsdk-path tsdk))
+  (or lsp-bridge-tsdk-path ""))
 
 (defun lsp-bridge--get-buffer-content-func (buffer-name &optional no-org-babel)
   "Get buffer content for lsp. BUFFER-NAME is name eval from (buffer-name)."
@@ -1232,6 +1253,8 @@ So we build this macro to restore postion after code format."
     ;; start epc server and set `lsp-bridge-server-port'
     (lsp-bridge--start-epc-server)
     (let* ((lsp-bridge-args (append
+                             (when (equal lsp-bridge-python-command "pipx")
+                               (list "run"))
                              (list lsp-bridge-python-file)
                              (list (number-to-string lsp-bridge-server-port))
                              (when lsp-bridge-enable-profile
@@ -2664,9 +2687,9 @@ SymbolKind (defined in the LSP)."
         filename filehost
         ;; When lsp-bridge running in server, `acm-backend-lsp-items' maybe nil when receive `lsp-bridge-completion-item--update' response.
         ;; So we need check `acm-backend-lsp-items' value before update item documentation.
-        (when-let ((server-lsp-items (gethash server-name acm-backend-lsp-items)))
+        (when-let* ((server-lsp-items (gethash server-name acm-backend-lsp-items)))
           ;; Update `documentation' and `additionalTextEdits'
-          (when-let (item (gethash key server-lsp-items))
+          (when-let* ((item (gethash key server-lsp-items)))
             (when additional-text-edits
               (plist-put item :additionalTextEdits additional-text-edits))
 
