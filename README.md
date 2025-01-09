@@ -48,7 +48,7 @@ Advantages of lsp-bridge:
 (global-lsp-bridge-mode)
 ```
 
-Note: To use completion in terminal, please install the compiled tty-child-frames branch of Emacs
+Note: To enable completion in the terminal, please install the latest version of Emacs, which supports tty-child-frames.
 
 * If you are using straight to install, you should use the following configuration to install:
 
@@ -361,6 +361,7 @@ If your language supports mixed multi-language servers, it is recommended to che
 |:------------|:---------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Ada         | [ada_language_server](https://github.com/AdaCore/ada_language_server)                      |                                                                 |
 | Ansible     | [ansible-language-server](https://github.com/ansible/ansible-language-server)                      | Ansible uses YAML as source code, you’ll need to customize `lsp-bridge-get-single-lang-server-by-project` to return "ansible-language-server".                                                                                                                      |
+| Angular     | [angular-language-server](https://github.com/angular/vscode-ng-language-service)                      | `npm i -g @angular/language-server @angular/language-service typescript emmet-ls vscode-langservers-extracted typescript-language-server`                                                                                                                  |
 | Astro       | [astro](https://github.com/withastro/language-tools/tree/main/packages/language-server)            | `npm i -g @astrojs/language-server`                                                                                                                                                                                                                                 |
 | Ballerina        | [ballerina-lang-server](https://github.com/ballerina-platform/ballerina-lang)                           |                                                                                                                                                                                                                               |
 | Bash        | [bash-language-server](https://github.com/bash-lsp/bash-language-server)                           |                                                                                                                                                                                                                                                                     |

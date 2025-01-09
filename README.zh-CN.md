@@ -30,7 +30,7 @@ lsp-bridge 的优势：
 ## 安装
 
 1. 安装 Emacs 28 及以上版本
-2. 安装 Python 依赖: `pip3 install epc orjson sexpdata six setuptools paramiko rapidfuzz watchdog` (orjson 是可选的， orjson 基于 Rust， 提供更快的 JSON 解析性能)
+2. 安装 Python 依赖: `pip3 install epc orjson sexpdata six setuptools paramiko rapidfuzz watchdog packaging` (orjson 是可选的， orjson 基于 Rust， 提供更快的 JSON 解析性能)
 3. 安装 Elisp 依赖: [markdown-mode](https://github.com/jrblevin/markdown-mode), [yasnippet](https://github.com/joaotavora/yasnippet)
 4. 用 `git clone` 下载此仓库， 并替换下面配置中的 load-path 路径
 5. 把下面代码加入到你的配置文件 ~/.emacs 中：
@@ -45,7 +45,7 @@ lsp-bridge 的优势：
 (global-lsp-bridge-mode)
 ```
 
-备注： 在终端下补全请安装编译 Emacs 的 tty-child-frames 分支
+备注： 在终端下补全请安装编译 Emacs 最新版， 以支持 tty-child-frames
 
 * 如果你使用 straight 来安装， 应该用下面的配置来安装：
 
@@ -357,6 +357,7 @@ lsp-bridge 针对许多语言都提供 2 个以上的语言服务器支持， �
 |:------------|:---------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Ada         | [ada_language_server](https://github.com/AdaCore/ada_language_server)                      |                                                                 |
 | Ansible     | [ansible-language-server](https://github.com/ansible/ansible-language-server)                      | Ansible 使用 YAML 来编程， 你需要定制选项 `lsp-bridge-get-single-lang-server-by-project` 当工程是 Ansible 项目的路径时， 返回 "ansible-language-server" 字符串                                                                |
+| Angular     | [angular-language-server](https://github.com/angular/vscode-ng-language-service)                      | `npm i -g @angular/language-server @angular/language-service typescript emmet-ls vscode-langservers-extracted typescript-language-server`                                                                                                                  |
 | Astro       | [astro](https://github.com/withastro/language-tools/tree/main/packages/language-server)            | `npm i -g @astrojs/language-server`                                                                                                                                                                                           |
 | Ballerina        | [ballerina-lang-server](https://github.com/ballerina-platform/ballerina-lang)                           |                                                                                                                                                                                                                               |
 | Bash        | [bash-language-server](https://github.com/bash-lsp/bash-language-server)                           |                                                                                                                                                                                                                               |
