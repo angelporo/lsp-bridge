@@ -531,6 +531,10 @@ Possible choices are basedpyright_ruff, pyright_ruff, pyright-background-analysi
   "Default LSP server for XML, you can choose `lemminx', `camells'"
   :type 'string)
 
+(defcustom lsp-bridge-cmake-lsp-server "cmake-language-server"
+  "Default LSP server for cmake, you can choose `cmake-language-server', `neocmakelsp'"
+  :type 'string)
+
 (defcustom lsp-bridge-tsdk-path nil
   "Tsserver lib*.d.ts directory path in current system needed by some lsp servers.
 If nil, lsp-bridge would try to detect by default."
@@ -555,7 +559,7 @@ If nil, lsp-bridge would try to detect by default."
 (defcustom lsp-bridge-single-lang-server-mode-list
   '(
     ((c-mode c-ts-mode c++-mode c++-ts-mode objc-mode c-or-c++-ts-mode) .        lsp-bridge-c-lsp-server)
-    ((cmake-mode cmake-ts-mode) .                                                "cmake-language-server")
+    ((cmake-mode cmake-ts-mode) .                                                lsp-bridge-cmake-lsp-server)
     ((java-mode java-ts-mode) .                                                  "jdtls")
     ((julia-mode) .                                                              "julials")
     ((python-mode python-ts-mode) .                                              lsp-bridge-python-lsp-server)
@@ -638,6 +642,7 @@ If nil, lsp-bridge would try to detect by default."
     (purescript-mode .                                                           "purescript-language-server")
     (perl-mode .                                                                 "perl-language-server")
     (futhark-mode .                                                              "futhark-lsp")
+    (conf-toml-mode .                                                            "taplo")
     )
   "The lang server rule for file mode."
   :type 'cons)
@@ -768,6 +773,7 @@ If nil, lsp-bridge would try to detect by default."
     purescript-mode-hook
     perl-mode-hook
     futhark-mode-hook
+    conf-toml-mode-hook
     )
   "The default mode hook to enable lsp-bridge."
   :type '(repeat variable))
@@ -881,6 +887,7 @@ you can customize `lsp-bridge-get-workspace-folder' to return workspace folder p
     (svelte-mode                . js-indent-level)        ;Svelte
     (fsharp-mode                . fsharp-indent-offset)   ; F#
     (gleam-ts-mode              . gleam-ts-indent-offset) ; Gleam
+    (conf-toml-mode             . toml-indent-offset)     ; Toml
     (default                    . standard-indent)) ; default fallback
   "A mapping from `major-mode' to its indent variable.")
 
@@ -1662,13 +1669,13 @@ So we build this macro to restore postion after code format."
 (defun lsp-bridge--is-evil-state ()
   "If `evil' mode is enable, only show completion when evil is in insert mode."
   (or (not (featurep 'evil))
-      (evil-insert-state-p)
+      (eq (evil-insert-state-p) evil-mode)
       (evil-emacs-state-p)))
 
 (defun lsp-bridge--is-meow-state ()
   "If `meow' mode is enable, only show completion when meow is in insert mode."
   (or (not (featurep 'meow))
-      meow-insert-mode
+      (eq meow-insert-mode meow-mode)
       (minibufferp)))
 
 (defun lsp-bridge--not-in-multiple-cursors ()

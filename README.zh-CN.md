@@ -266,6 +266,7 @@ lsp-bridge 针对许多语言都提供 2 个以上的语言服务器支持， �
 - `lsp-bridge-lua-lsp-server`: Lua 语言的服务器， 可以选择 `sumneko`, 或者 `lua-lsp`
 - `lsp-bridge-verilog-lsp-server`: Verilog 语言的服务器， 可以选择 `verible`, 或者 `svls`
 - `lsp-bridge-xml-lsp-server`: XML 语言的服务器， 可以选择 `lemminx`, 或者 `camells`
+- `lsp-bridge-cmake-lsp-server`: CMake 语言的服务器， 可以选择 `cmake-language-server`, 或者 `neocmakelsp`
 
 ## 选项
 
@@ -364,6 +365,7 @@ lsp-bridge 针对许多语言都提供 2 个以上的语言服务器支持， �
 | BibTex   | [citation-langserver](https://github.com/oncomouse/citation-langserver)               |   |
 | Clojure     | [clojure-lsp](https://github.com/clojure-lsp/clojure-lsp)                                          | 如果使用 `homebrew` 安装的， 请确保安装的是 `clojure-lsp/brew/clojure-lsp-native` [clojure-lsp-native](https://clojure-lsp.io/installation/#homebrew-macos-and-linux)                                                         |
 | Cmake       | [cmake-language-server](https://github.com/regen100/cmake-language-server)                         | `pip install cmake-language-server`                                                                                                                                                                                           |
+|            | [neocmakelsp](https://github.com/neocmakelsp/neocmakelsp)                         |                                                                                                                                                                                            |
 | Cobol       | [che-che4z-lsp-for-cobol](https://github.com/eclipse-che4z/che-che4z-lsp-for-cobol)                         |                                                                                                                                |
 | CSS         | [vscode-css-language-server](https://github.com/hrsh7th/vscode-langservers-extracted)              | `npm i -g vscode-langservers-extracted`                                                                                                                                                                                       |
 | Cucumber         | [cucumber-language-server](https://github.com/cucumber/language-server)              | `npm install @cucumber/language-server`                                                                                                                                                                                       |
@@ -452,6 +454,7 @@ lsp-bridge 针对许多语言都提供 2 个以上的语言服务器支持， �
 | Swift       | [sourcekit-lsp](https://github.com/apple/sourcekit-lsp)                                            | Sourcekit-lsp 包含在 swift toolchain 中。                                                                                                                                                                                     |
 | Tailwindcss | [tailwindcss-language-server](https://www.npmjs.com/package/@tailwindcss/language-server)          | `npm install -g @tailwindcss/language-server` , 还需要按照 [官方文档](https://tailwindcss.com/docs/installation) 配置 tailwind.config.js                                                                                        |
 | Terraform | [terraform-ls](https://github.com/hashicorp/terraform-ls)          |                                                                        |
+| Toml | [taplo](https://github.com/tamasfe/taplo) | `cargo install taplo-cli --features lsp`, 或者参考 [taplo 安装指南](https://taplo.tamasfe.dev/cli/installation/binary.html) |
 | TTCN-3  | [ntt](https://github.com/nokia/ntt)             |                                                                                                                                                                                                                               |
 | Typescript  | [typescript](https://github.com/typescript-language-server/typescript-language-server)             |                                                                                                                                                                                                                               |
 | Typst       | [typst-lsp](https://github.com/nvarner/typst-lsp)                                                  |                                                                                                                                                                                                                               |
