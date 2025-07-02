@@ -289,6 +289,12 @@ After set `lsp-bridge-completion-obey-trigger-characters-p' to nil, you need use
   :safe (lambda (v) (or (null v) (stringp v)))
   :group 'lsp-bridge)
 
+(defcustom lsp-bridge-user-ssh-agent nil
+  "use ssh-agent in SSH connections."
+  :type 'boolean
+  :safe #'booleanp
+  :group 'lsp-bridge)
+
 (defcustom lsp-bridge-symbols-enable-which-func nil
   "Wether use lsp-bridge in which-func."
   :type 'boolean
@@ -418,7 +424,9 @@ LSP-Bridge will enable completion inside string literals."
                                                    "python3.exe")
                                                   ((executable-find "python.exe")
                                                    "python.exe")))
-                                           (t (cond ((executable-find "pypy3")
+                                           (t (cond ((executable-find "python-lsp-bridge")
+                                                     "python-lsp-bridge")
+                                                    ((executable-find "pypy3")
                                                      "pypy3")
                                                     ((executable-find "python3")
                                                      "python3")
@@ -570,8 +578,8 @@ If nil, lsp-bridge would try to detect by default."
     ((go-mode go-ts-mode) .                                                      "gopls")
     (groovy-mode .                                                               "groovy-language-server")
     (haskell-mode .                                                              "hls")
-    (lua-mode .                                                                  lsp-bridge-lua-lsp-server)
-    (markdown-mode .                                                             lsp-bridge-markdown-lsp-server)
+    ((lua-mode lua-ts-mode)  .                                                   lsp-bridge-lua-lsp-server)
+    ((markdown-mode gfm-mode) .                                                  lsp-bridge-markdown-lsp-server)
     (dart-mode .                                                                 "dart-analysis-server")
     (scala-mode .                                                                "metals")
     ((js2-mode js-mode js-ts-mode rjsx-mode) .                                   "javascript")
@@ -616,6 +624,7 @@ If nil, lsp-bridge would try to detect by default."
     (solidity-mode .                                                             "solidity")
     (gleam-ts-mode .                                                             "gleam")
     (ada-mode .                                                                  "ada-language-server")
+    (hyprlang-ts-mode .                                                          "hyprls")
     (scad-mode .                                                                 "openscad-lsp")
     (sml-mode .                                                                  "millet")
     (fuzion-mode .                                                               "fuzion-language-server")
@@ -657,6 +666,7 @@ If nil, lsp-bridge would try to detect by default."
     ruby-mode-hook
     ruby-ts-mode-hook
     lua-mode-hook
+    lua-ts-mode-hook
     move-mode-hook
     rust-mode-hook
     rstml-ts-mode-hook
@@ -748,6 +758,7 @@ If nil, lsp-bridge would try to detect by default."
     solidity-mode-hook
     gleam-ts-mode-hook
     ada-mode-hook
+    hyprlang-ts-mode-hook
     scad-mode-hook
     sml-mode-hook
     fuzion-mode-hook
@@ -824,6 +835,7 @@ you can customize `lsp-bridge-get-workspace-folder' to return workspace folder p
     (json-mode                  . js-indent-level)  ; JSON
     (json-ts-mode               . js-indent-level)  ; JSON
     (lua-mode                   . lua-indent-level) ; Lua
+    (lua-ts-mode                . lua-ts-indent-offset) ; Lua
     (objc-mode                  . c-basic-offset)   ; Objective C
     (php-mode                   . c-basic-offset)   ; PHP
     (php-ts-mode                . php-ts-mode-indent-offset) ; PHP
@@ -832,6 +844,7 @@ you can customize `lsp-bridge-get-workspace-folder' to return workspace folder p
     (raku-mode                  . raku-indent-offset)  ; Perl6/Raku
     (erlang-mode                . erlang-indent-level) ; Erlang
     (ada-mode                   . ada-indent)          ; Ada
+    (hyprlang-ts-mode           . hyprlang-ts-mode-indent-offset) ; Hyprlang
     (scad-mode                  . lsp-bridge-indent-two-level) ; OpenSCAD
     (sml-mode                   . sml-indent-level) ; Standard ML
     (fuzion-mode                . lsp-bridge-indent-two-level) ; Fuzion
@@ -1119,7 +1132,8 @@ So we build this macro to restore postion after code format."
   "Get lang server for file extension."
   ;; Don't search from extension list if filename not include any extension name.
   (when-let* ((dot-pos (cl-position ?. filename))
-              (file-extension (substring filename (1+ dot-pos) (length filename))))
+              (file-extension (when dot-pos
+                                (substring filename (1+ dot-pos) (length filename)))))
     (let (langserver-info)
       ;; Search multi-extension first, to support Angular file, reference https://github.com/manateelazycat/lsp-bridge/pull/1144
       (setq langserver-info (lsp-bridge-find-langserver-info-by-extension file-extension extension-list))
@@ -1297,7 +1311,7 @@ So we build this macro to restore postion after code format."
     ;; start epc server and set `lsp-bridge-server-port'
     (lsp-bridge--start-epc-server)
     (let* ((lsp-bridge-args (append
-                             (when (equal lsp-bridge-python-command "pipx")
+                             (when (member lsp-bridge-python-command '("pipx" "uv"))
                                (list "run"))
                              (list lsp-bridge-python-file)
                              (list (number-to-string lsp-bridge-server-port))
